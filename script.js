@@ -56,12 +56,12 @@
 
 // The provided assignment group.
 
-const course = {
+const CourseInfo = {
     id: 451,
     name: "Introduction to JavaScript"
 };
 
-const ag = {
+const AssignmentGroup = {
     id: 12345,
     name: "Fundamentals of JavaScript",
     course_id: 451,
@@ -90,7 +90,7 @@ const ag = {
 
 
 // The provided learner submission data.
-const learnerSubmission = [
+const LearnerSubmissions = [
     {
         learner_id: 125,
         assignment_id: 1,
@@ -134,143 +134,117 @@ const learnerSubmission = [
 ];
 
 
-//   Check for late submission
-
-function checkLateSubmission(dueDate, submittedAt) {
-
-    // Convert to date format
-
-    let newDueDate = new Date(dueDate)
-    let newSubmittedAt = new Date(submittedAt)
-
-    if (newSubmittedAt > newDueDate) {
-
-        return true;
-
-    }
-
-    else {
-
-        return false;
-    }
-
-};
-
-function getWeightedAverage(AssignmentGroup, LearnerSubmission) {
+function getLearnerData(course, ag, submissions) {
 
     // Initialize the variable
-
+  
     let possibleTotal = 0;
-    let weightedAverage= 0;
-    
-    for (let submission of LearnerSubmission) {
-
-        // Match assignment_id with AssginmentGroup.assignment.id 
-
-        let assignment = AssignmentGroup.assignments.find(assignment => assignment.id === submission.assignment_id)
-
-         // Skip assignment if not found
-
+    let learnerTotalScore = 0;
+    let weightedAverage = 0;
+    let percentageScore = 0;
+    let LearnerData = [];
+    let assignmentScores = [];
+  
+    // get unique student IDs
+  
+    let studentIds = getUniqueStudentIds(LearnerSubmissions);
+  
+    for (let studentId of studentIds) {
+      let assignmentScore = {};
+  
+      // Filterout the submissions that match the studentId
+  
+      let studentSubmissions = LearnerSubmissions.filter(
+        (submission) => submission.learner_id === studentId
+      );
+  
+      for (let submission of studentSubmissions) {
+        // Match assignment_id with AssginmentGroup.assignment.id
+  
+        let assignment = AssignmentGroup.assignments.find(
+          (assignment) => assignment.id === submission.assignment_id
+        );
+  
+        // Skip assignment if not found
+  
         if (!assignment) {
-
-            continue;
+          continue;
         }
-
+  
+        // Remove the assignments that are not due
+  
+        if (new Date(assignment.due_at) > new Date()) {
+          continue;
+        }
+  
         let possiblePoints = assignment.points_possible;
         let learnerScore = submission.submission.score;
-
+  
         // Check for late submission
-
-        let latePenality = checkLateSubmission(assignment.due_at, submission.submission.submitted_at)
-
+  
+        let latePenality = checkLateSubmission(
+          assignment.due_at,
+          submission.submission.submitted_at
+        );
+  
+        // calculate weightedAverage
+  
         possibleTotal += possiblePoints;
-        weightedAverage += ((learnerScore - latePenality * 0.1 * learnerScore) / possiblePoints)   
-
-    }
-
-    return weightedAverage
-
-}
-
-// Calculate Assignment Score()
-
-function getAssignmnentScore(AssignmentGroup, LearnerSubmission) {
-
-    // Initialize array to hold assignment scores
-
-    let assignmentScores = {};
-
-    for (let submission of LearnerSubmission){
-
-        // Match assignment_id with AssginmentGroup.assignment.id 
-
-        const assignment = AssignmentGroup.assignments.find(assignment => assignment.id === submission.assignment_id)
-
-        
-
-        if (!assignment) {
-
-            continue;
-        }
-
-        let possiblePoints = assignment.points_possible;
-        let learnerScore = submission.submission.score;
-
-        // Check for Late Submission
-
-        let latePenality = checkLateSubmission(assignment.due_at, submission.submission.submitted_at)
-
-        const percentageScore = ((learnerScore - latePenality * 0.1 * learnerScore) / possiblePoints)
-
-        assignmentScores[submission.assignment_id] = percentageScore;        
-        
-    }
-
-    
-
-    // console.log(assignmentScores)
-
-    return assignmentScores
-
-}
-
-function getLearnerData(CourseInfo, AssignmentGroup, LearnerSubmission) {
-
-    // Initialize Learner Data
-
-    // Data Validation
-
-    // Handle Error Cases
-
-    // Calculate Weighted Average
-
-    let weightedAverage = getWeightedAverage(AssignmentGroup, LearnerSubmission)
-
-    // console.log(weightedAverage)
-
-    // Calculate Assignment Score
-
-    let assignmentScores = getAssignmnentScore(AssignmentGroup, LearnerSubmission)
-
-    // console.log(assignmentScores)
-
-    // Filter Out Unsubmitted Assignment
-
-    // function filterUnsubmittedAssignments()
-
-    // Format Output
-
-    const LearnerData = {
-        id: CourseInfo.id,
+        learnerScore = learnerScore - latePenality * 0.1 * possiblePoints;
+        learnerTotalScore += learnerScore;
+  
+        // calculate scores
+        weightedAverage = learnerTotalScore / possibleTotal;
+        percentageScore = learnerScore / possiblePoints;
+        assignmentScore[submission.assignment_id] = percentageScore;
+      }
+  
+    LearnerData.push({
+        id: studentId,
         avg: weightedAverage,
-        ...assignmentScores
-    };
-
-    return LearnerData
-}
-
-let data = getLearnerData(course, ag, learnerSubmission)
-
-// console.log(data)
-
-
+        ...assignmentScore,
+      });
+  
+      learnerTotalScore = 0;
+      possibleTotal = 0;
+    }
+  
+    return LearnerData;
+  }
+  
+  //   Check for late submission
+  
+  function checkLateSubmission(dueDate, submittedAt) {
+    // Convert to date format
+  
+    let newDueDate = new Date(dueDate);
+    let newSubmittedAt = new Date(submittedAt);
+  
+    if (newSubmittedAt > newDueDate) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+  
+  // Get unique Student Ids
+  
+  function getUniqueStudentIds(LearnerSubmissions) {
+    // Extract student Ids from each submission
+  
+    let studentIds = LearnerSubmissions.map(
+      (submission) => submission.learner_id
+    );
+  
+    // Remove duplicated and show only unique student Ids
+  
+    return (studentIds = [...new Set(studentIds)]);
+  }
+  
+  const LearnerData = getLearnerData(
+    CourseInfo,
+    AssignmentGroup,
+    LearnerSubmissions
+  );
+  
+  console.log(LearnerData);
